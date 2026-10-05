@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>方源 - 全能后台管理系统</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+        /* ================= 1. 登录界面 ================= */
+        #login-view { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; background: #1a1a1a; position: absolute; top: 0; left: 0; z-index: 100; }
+        .login-box { background: #fff; padding: 40px 30px; border-radius: 12px; width: 90%; max-width: 360px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .login-box h2 { text-align: center; margin-bottom: 30px; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 8px; }
+        .form-group input { width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+        .login-btn { width: 100%; padding: 14px; background: #ffe60f; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; color: #333; cursor: pointer; }
+        .tip { text-align: center; font-size: 12px; color: #999; margin-top: 15px; }
+
+        /* ================= 2. 主界面布局 ================= */
+        #app-view { display: none; width: 100%; height: 100%; position: relative; background: #f5f6f8; flex-direction: column; }
+        .top-bar { height: 55px; background: #1a1a1a; color: #fff; display: flex; align-items: center; padding: 0 15px; justify-content: space-between; position: relative; z-index: 10; }
+        .menu-btn { font-size: 24px; cursor: pointer; color: #ffe60f; }
+        .top-title { font-size: 16px; font-weight: bold; }
+        .user-info { font-size: 12px; color: #aaa; }
+
+        /* 侧滑菜单 */
+        .sidebar { position: absolute; top: 0; left: 0; width: 280px; height: 100%; background: #1e1e1e; z-index: 20; transform: translateX(-100%); transition: transform 0.3s ease; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.5); background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 20px 20px; }
+        .sidebar.show { transform: translateX(0); }
+        .sidebar-header { padding: 30px 20px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 15px; }
+        .avatar-large { width: 50px; height: 50px; border-radius: 50%; background: #ffe60f; display: flex; justify-content: center; align-items: center; font-size: 24px; overflow: hidden; flex-shrink: 0; }
+        .avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+        .sidebar-header .info h3 { color: #fff; font-size: 16px; margin-bottom: 5px; }
+        .sidebar-header .info p { color: #888; font-size: 12px; }
+        .vip-tag { background: linear-gradient(90deg, #ff8c00, #ff2a00); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 5px; }
+        
+        .menu-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 20px; }
+        .menu-group-title { color: #666; font-size: 12px; padding: 15px 20px 5px; }
+        .menu-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; color: #ccc; font-size: 14px; cursor: pointer; transition: 0.2s; }
+        .menu-item:hover, .menu-item.active { background: #2a2a2a; color: #fff; }
+        .menu-item .arrow { color: #555; font-size: 12px; transition: transform 0.3s; }
+        .menu-item.open .arrow { transform: rotate(90deg); }
+        .submenu { display: none; background: #151515; padding-left: 20px; }
+        .submenu.open { display: block; }
+        .submenu-item { padding: 12px 20px; color: #888; font-size: 13px; border-bottom: 1px solid #222; cursor: pointer;}
+        .submenu-item:last-child { border-bottom: none; }
+
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 15; display: none; }
+        .overlay.show { display: block; }
+
+        /* 内容区域 */
+        .content-area { flex: 1; position: relative; overflow: hidden; }
+        .page-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #f5f6f8; display: none; }
+        .page-view.active { display: block; }
+
+        /* 卡片与表单 */
+        .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card-title { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 15px; border-left: 4px solid #ffe60f; padding-left: 10px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-box { background: #f9f9f9; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-box .num { font-size: 20px; font-weight: bold; color: #333; margin-bottom: 5px; }
+        .stat-box .label { font-size: 12px; color: #999; }
+
+        .form-item { margin-bottom: 15px; }
+        .form-item label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+        .form-item input, .form-item textarea, .form-item select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; font-family: inherit; }
+        .form-item textarea { resize: vertical; min-height: 80px; }
+        .btn { width: 100%; padding: 12px; background: #ffe60f; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; color: #333; cursor: pointer; }
+        .btn:active { background: #e6ce00; }
+        .btn-sm { padding: 8px 15px; font-size: 13px; width: auto; display: inline-block; }
+        .btn-blue { background: #1677ff; color: #fff; }
+        .btn-purple { background: #722ed1; color: #fff; }
+
+        /* 个人资料与广告位 */
+        .profile-card { display: flex; align-items: center; gap: 15px; }
+        .profile-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #ffe60f; background: #eee; }
+        .profile-info h3 { font-size: 16px; color: #333; margin-bottom: 5px; }
+        .profile-info p { font-size: 12px; color: #999; }
+        .ad-slot { background: #f9f9f9; border: 2px dashed #ccc; border-radius: 10px; padding: 30px 20px; text-align: center; margin-bottom: 15px; color: #999; transition: 0.3s; cursor: pointer; }
+        .ad-slot:hover { background: #fffdf0; border-color: #ffe60f; }
+        .ad-slot p { font-weight: bold; margin-bottom: 5px; color: #666; }
+        .ad-slot span { font-size: 12px; }
+
+        /* 客服会话模块 */
+        .conv-list { display: flex; flex-direction: column; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .conv-item { display: flex; padding: 15px; gap: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; transition: 0.2s; }
+        .conv-item:last-child { border-bottom: none; }
+        .conv-item:hover { background: #f9f9f9; }
+        .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: #ffe60f; display: flex; justify-content: center; align-items: center; font-size: 20px; flex-shrink: 0; }
+        .conv-info { flex: 1; min-width: 0; }
+        .conv-top { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .conv-name { font-size: 14px; font-weight: bold; color: #333; }
+        .conv-time { font-size: 12px; color: #999; }
+        .conv-msg { font-size: 13px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .unread-badge { background: #ff4d4f; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; margin-left: 5px; }
+
+        /* 聊天窗口 (管理员) */
+        .chat-panel { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #f5f6f8; display: flex; flex-direction: column; z-index: 50; transform: translateX(100%); transition: transform 0.3s ease; }
+        .chat-panel.show { transform: translateX(0); }
+        .chat-header { padding: 15px; background: #fff; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 15px; font-size: 16px; font-weight: bold; color: #333; }
+        .back-btn { font-size: 20px; cursor: pointer; color: #333; padding-right: 10px;}
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 15px; }
+        .msg-row { display: flex; gap: 10px; max-width: 85%; }
+        .msg-row.user { align-self: flex-start; }
+        .msg-row.admin { align-self: flex-end; flex-direction: row-reverse; }
+        .msg-avatar { width: 36px; height: 36px; border-radius: 50%; background: #ddd; display: flex; justify-content: center; align-items: center; flex-shrink: 0; font-size: 16px; }
+        .msg-bubble { padding: 10px 15px; border-radius: 8px; font-size: 14px; line-height: 1.5; color: #333; word-break: break-all; }
+        .msg-bubble img { max-width: 100%; border-radius: 6px; display: block; }
+        .msg-row.user .msg-bubble { background: #fff; border-top-left-radius: 2px; }
+        .msg-row.admin .msg-bubble { background: #ffe60f; border-top-right-radius: 2px; }
+
+        /* ================= 3. 买家端聊天窗口样式 ================= */
+        .buyer-chat-wrapper { display: flex; flex-direction: column; height: 100%; background: #f5f6f8; position: absolute; top: 0; left: 0; width: 100%; z-index: 5; }
+        .buyer-chat-header { background: #1a1a1a; color: #fff; padding: 15px; display: flex; align-items: center; gap: 10px; }
+        .buyer-chat-header .avatar { background: #ffe60f; width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #333; font-weight: bold; font-size: 14px; }
+        .buyer-chat-header .info h3 { font-size: 15px; margin-bottom: 2px; }
+        .buyer-chat-header .info p { font-size: 11px; color: #aaa; }
+        .buyer-chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .buyer-chat-messages .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
+        .buyer-chat-messages .msg-row.user .msg-bubble { background: #ffe60f; border-top-right-radius: 2px; border-top-left-radius: 8px; }
+        .buyer-chat-messages .msg-row.admin { align-self: flex-start; }
+        .buyer-chat-messages .msg-row.admin .msg-bubble { background: #fff; border-top-left-radius: 2px; border-top-right-radius: 8px; }
+
+        /* 统一聊天输入区（带表情、相册） */
+        .chat-input-area, .buyer-chat-input { 
+            padding: 10px 15px; background: #fff; border-top: 1px solid #eee; 
+            display: flex; gap: 8px; align-items: center; padding-bottom: 25px; 
+            position: relative;
+        }
+        .chat-input-area input, .buyer-chat-input input { 
+            flex: 1; padding: 12px 15px; border: 1px solid #ddd; border-radius: 20px; 
+            font-size: 14px; outline: none; background: #f5f5f5; 
+        }
+        .tool-btn { font-size: 22px; cursor: pointer; padding: 0 5px; user-select: none; }
+        .send-btn { padding: 0 20px; background: #ffe60f; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; height: 40px; }
+        .buyer-chat-input .send-btn { background: #333; color: #fff; }
+
+        /* 表情面板 */
+        .emoji-panel { 
+            display: none; position: absolute; bottom: 75px; left: 15px; 
+            background: #fff; border: 1px solid #eee; border-radius: 10px; 
+            padding: 10px; width: 250px; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); 
+            grid-template-columns: repeat(6, 1fr); gap: 10px; z-index: 100;
+        }
+        .emoji-panel.show { display: grid; }
+        .emoji-item { font-size: 22px; cursor: pointer; text-align: center; user-select: none; }
+        .emoji-item:hover { background: #f5f5f5; border-radius: 5px; }
+
+        /* 白情中介专属样式 */
+        .mediator-status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .status-pending { background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; }
+        .status-success { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+
+        /* 弹窗通用 */
+        .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 200; display: none; justify-content: center; align-items: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: #fff; border-radius: 12px; padding: 25px; width: 90%; max-width: 320px; text-align: center; }
+        .modal-content h3 { margin-bottom: 15px; color: #333; }
+        .qr-box { background: #f5f5f5; padding: 15px; border-radius: 8px; display: inline-block; margin: 10px 0; }
+        .qr-box img { width: 150px; height: 150px; }
+        .short-code { font-size: 18px; font-weight: bold; color: #ff4d4f; letter-spacing: 2px; margin: 10px 0; }
+        .modal-content p { font-size: 12px; color: #999; margin-bottom: 15px; }
+        .close-btn { background: #eee; color: #333; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+
+        .order-detail-box { text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed #ffe60f; }
+        .order-detail-box p { font-size: 13px; color: #333; margin-bottom: 8px; line-height: 1.5; }
+        .order-detail-box p span { color: #888; display: inline-block; width: 70px; }
+    </style>
+</head>
+<body>
+
+    <!-- ================= 1. 登录界面 ================= -->
+    <div id="login-view">
+        <div class="login-box">
+            <h2>方源 - 全能后台</h2>
+            <div class="form-group">
+                <label>管理员账号</label>
+                <input type="text" id="username" value="admin" placeholder="请输入账号">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" value="123456" placeholder="请输入密码">
+            </div>
+            <button class="login-btn" onclick="doLogin()">进入控制台</button>
+            <div class="tip">默认账号：admin / 密码：123456</div>
+        </div>
+    </div>
+
+    <!-- ================= 2. 主界面 ================= -->
+    <div id="app-view">
+        <!-- 顶部导航 -->
+        <div class="top-bar">
+            <div class="menu-btn" onclick="toggleSidebar(true)">☰</div>
+            <div class="top-title" id="pageTitle">控制面板</div>
+            <div class="user-info">方源 (VIP)</div>
+        </div>
+
+        <!-- 遮罩 -->
+        <div class="overlay" id="overlay" onclick="toggleSidebar(false)"></div>
+
+        <!-- 左侧滑出菜单 -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="avatar-large" id="sidebarAvatar">
+                    <img src="avatar.jpg" alt="头像" onerror="this.style.display='none'; this.parentElement.innerHTML='😎';">
+                </div>
+                <div class="info">
+                    <h3>方源 <span class="vip-tag">SVIP</span></h3>
+                    <p>高级权限 · 江苏</p>
+                </div>
+            </div>
+            <div class="menu-list">
+                <div class="menu-group-title">核心功能</div>
+                <div class="menu-item" onclick="switchPage('dashboard')">📊 控制面板</div>
+                <div class="menu-item" onclick="switchPage('conversations')">💬 客服会话 <span class="unread-badge" id="menuUnread" style="display:none;">0</span></div>
+                
+                <div class="menu-item" onclick="toggleSubmenu(this)">🛒 链接采集 <span class="arrow">›</span></div>
+                <div class="submenu">
+                    <div class="submenu-item" onclick="switchPage('collect')">闲鱼采集模板</div>
+                    <div class="submenu-item" onclick="switchPage('collect')">得物采集模板</div>
+                    <div class="submenu-item" onclick="switchPage('collect')">猫眼采集模板</div>
+                </div>
+
+                <div class="menu-item" onclick="switchPage('orders')">📦 订单短码</div>
+                
+                <!-- 新增：白情中介 -->
+                <div class="menu-item" onclick="switchPage('mediator')">🛡️ 白情中介</div>
+
+                <div class="menu-group-title">模拟测试</div>
+                <div class="menu-item" onclick="switchPage('buyer')">👤 买家端模拟</div>
+
+                <div class="menu-group-title">系统设置</div>
+                <div class="menu-item" onclick="switchPage('settings')">⚙️ 权限与密码</div>
+                <div class="menu-item" onclick="logout()">🚪 退出登录</div>
+            </div>
+        </div>
+
+        <!-- 内容区 -->
+        <div class="content-area">
+            <!-- 页面1：控制面板 -->
+            <div id="page-dashboard" class="page-view active">
+                <div class="card profile-card">
+                    <img src="avatar.jpg" class="profile-avatar" alt="头像" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM5OTkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAgMjF2LTJhNCA0IDAgMCAwLTQtNEg4YTQgNCAwIDAgMC00IDR2MiI+PC9wYXRoPjxjaXJjbGUgY3g9IjEyIiBjeT0iNyIgcj0iNCI+PC9jaXJjbGU+PC9zdmc+'">
+                    <div class="profile-info">
+                        <h3>方源 <span class="vip-tag">SVIP</span></h3>
+                        <p>高级管理员 · 江苏</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">🌐 买家信息收集记录 (最新在前)</div>
+                    <div class="ip-log-list" id="ipLogList">
+                        <div style="color:#999; font-size:13px; text-align:center; padding:10px;">暂无收集记录，去“买家端模拟”访问一下试试</div>
+                    </div>
+                </div>
+
+                <div class="ad-slot" onclick="alert('这里未来可以接入真实的广告代码或图片！')">
+                    <p>📢 广告位招租</p>
+                    <span>这里预留了广告模块位置，暂未开放</span>
+                </div>
+                <div class="card">
+                    <div class="card-title">数据概览</div>
+                    <div class="stats-grid">
+                        <div class="stat-box"><div class="num">128</div><div class="label">今日采集</div></div>
+                        <div class="stat-box"><div class="num">56</div><div class="label">生成短码</div></div>
+                        <div class="stat-box"><div class="num">12</div><div class="label">扫码访问</div></div>
+                        <div class="stat-box"><div class="num">3</div><div class="label">在线客服</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 页面2：客服会话列表 -->
+            <div id="page-conversations" class="page-view">
+                <div class="conv-list" id="convList"></div>
+            </div>
+
+            <!-- 页面3：采集页面 -->
+            <div id="page-collect" class="page-view">
+                <div class="card">
+                    <div class="card-title">采集订单信息 (模拟)</div>
+                    <div class="form-item">
+                        <label>选择采集平台</label>
+                        <select id="collectPlatform">
+                            <option value="xianyu">闲鱼</option>
+                            <option value="dewu">得物</option>
+                            <option value="maoyan">猫眼</option>
+                        </select>
+                    </div>
+                    <div class="form-item">
+                        <label>订单号 / 采集链接</label>
+                        <input type="text" id="collectOrderNo" placeholder="例如：TB20231024001 或 链接">
+                    </div>
+                    <div class="form-item">
+                        <label>订单内容详情</label>
+                        <textarea id="collectOrderDetails" placeholder="商品名称：某某商品&#10;价格：99.00&#10;买家备注：请尽快发货"></textarea>
+                    </div>
+                    <button class="btn" onclick="createClonedOrder()">一键采集并创建相同订单</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🔗 通过短码进入订单</div>
+                    <div class="form-item">
+                        <label>输入买家发来的短码</label>
+                        <input type="text" id="enterOrderCodeInput" placeholder="例如：A1B2C3">
+                    </div>
+                    <button class="btn btn-blue" onclick="enterOrderByCode()">进入该订单</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">已采集的订单列表</div>
+                    <div class="collect-list" id="collectList"></div>
+                </div>
+            </div>
+
+            <!-- 页面4：订单短码 -->
+            <div id="page-orders" class="page-view">
+                <div class="card">
+                    <div class="card-title">短码生成与管理</div>
+                    <div class="form-item">
+                        <label>需要生成短码的网址</label>
+                        <input type="text" id="orderUrl" placeholder="https://your-website.com/item/123">
+                    </div>
+                    <button class="btn" onclick="generateShortCode(document.getElementById('orderUrl').value)">生成短码并生成收款码</button>
+                </div>
+                <div class="card">
+                    <div class="card-title">历史短码</div>
+                    <div class="collect-list" id="historyList"></div>
+                </div>
+            </div>
+
+            <!-- 页面5：新增 - 白情中介页面 -->
+            <div id="page-mediator" class="page-view">
+                <div class="card">
+                    <div class="card-title">🛡️ 创建白情中介担保订单</div>
+                    <div class="form-item">
+                        <label>交易类型</label>
+                        <select id="mediatorType">
+                            <option value="game">游戏账号交易</option>
+                            <option value="item">虚拟物品交易</option>
+                            <option value="other">其他代练/服务</option>
+                        </select>
+                    </div>
+                    <div class="form-item">
+                        <label>交易金额 (元)</label>
+                        <input type="number" id="mediatorAmount" placeholder="例如：500">
+                    </div>
+                    <div class="form-item">
+                        <label>买家联系方式</label>
+                        <input type="text" id="mediatorBuyerContact" placeholder="例如：微信号 / 手机号">
+                    </div>
+                    <div class="form-item">
+                        <label>卖家联系方式</label>
+                        <input type="text" id="mediatorSellerContact" placeholder="例如：微信号 / 手机号">
+                    </div>
+                    <div class="form-item">
+                        <label>交易具体说明</label>
+                        <textarea id="mediatorDetails" placeholder="例如：王者荣耀V10账号，全英雄，交易流程需白情客服监督"></textarea>
+                    </div>
+                    <button class="btn btn-purple" onclick="createMediatorOrder()">生成白情担保订单与短码</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📋 我的中介订单</div>
+                    <div class="collect-list" id="mediatorList"></div>
+                </div>
+            </div>
+
+            <!-- 页面6：系统设置 -->
+            <div id="page-settings" class="page-view">
+                <div class="card">
+                    <div class="card-title">修改管理员密码</div>
+                    <div class="form-item">
+                        <label>原密码</label>
+                        <input type="password" id="oldPass" placeholder="请输入原密码">
+                    </div>
+                    <div class="form-item">
+                        <label>新密码</label>
+                        <input type="password" id="newPass" placeholder="请输入新密码">
+                    </div>
+                    <button class="btn" onclick="changePassword()">保存修改</button>
+                </div>
+            </div>
+
+            <!-- 页面7：买家端模拟聊天 -->
+            <div id="page-buyer" class="page-view" style="padding: 0;">
+                <div class="buyer-chat-wrapper">
+                    <div class="buyer-chat-header">
+                        <div class="avatar" id="buyerAgentAvatar">闲</div>
+                        <div class="info">
+                            <h3 id="buyerAgentName">闲鱼官方客服</h3>
+                            <p>在线为您服务</p>
+                        </div>
+                    </div>
+                    <div class="buyer-chat-messages" id="buyerChatMessages"></div>
+                    
+                    <!-- 买家端输入区（带表情相册） -->
+                    <div class="buyer-chat-input">
+                        <div class="tool-btn" onclick="toggleEmoji('buyer')">😊</div>
+                        <div class="tool-btn" onclick="triggerUpload('buyer')">🖼️</div>
+                        <input type="text" id="buyerInput" placeholder="输入您想问的问题..." onkeypress="if(event.key==='Enter') sendBuyerMsg()">
+                        <button class="send-btn" onclick="sendBuyerMsg()">发送</button>
+                    </div>
+                    <!-- 买家表情面板 -->
+                    <div class="emoji-panel" id="emojiPanelBuyer"></div>
+                </div>
+            </div>
+
+            <!-- 聊天窗口（管理员滑出层） -->
+            <div class="chat-panel" id="chatPanel">
+                <div class="chat-header">
+                    <span class="back-btn" onclick="closeChat()">⬅</span>
+                    <span id="chatHeaderName">用户</span>
+                </div>
+                <div class="chat-messages" id="chatMessages"></div>
+                
+                <!-- 管理员端输入区（带表情相册） -->
+                <div class="chat-input-area">
+                    <div class="tool-btn" onclick="toggleEmoji('admin')">😊</div>
+                    <div class="tool-btn" onclick="triggerUpload('admin')">🖼️</div>
+                    <input type="text" id="replyInput" placeholder="输入回复内容..." onkeypress="if(event.key==='Enter') sendReply()">
+                    <button class="send-btn" onclick="sendReply()">发送</button>
+                </div>
+                <!-- 管理员表情面板 -->
+                <div class="emoji-panel" id="emojiPanelAdmin"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 隐藏的文件上传控件 -->
+    <input type="file" id="imageUploader" accept="image/*" style="display: none;">
+
+    <!-- ================= 3. 扫码弹窗 ================= -->
+    <div class="modal" id="qrModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">扫码支付 / 跳转</h3>
+            <div class="qr-box" id="qrBox">
+                <img id="qrImg" src="" alt="二维码">
+            </div>
+            <div class="short-code" id="shortCodeDisplay">AB12CD</div>
+            <p id="modalTip">请使用微信或支付宝扫码进入您的网站</p>
+            
+            <div id="orderDetailDisplay" style="display: none;">
+                <div class="order-detail-box" id="orderDetailContent"></div>
+                <p>请确认订单信息无误后进行支付</p>
+            </div>
+
+            <button class="close-btn" onclick="closeModal()">关闭</button>
+        </div>
+    </div>
+
+    <script>
+        // ================= 数据 =================
+        const conversations = [
+            { id: 1, name: '用户A', avatar: '👤', lastMsg: '你好，我想问下发货了吗？', time: '10:30', unread: 2, messages: [
+                { sender: 'user', type: 'text', text: '你好，我想问下发货了吗？' },
+                { sender: 'user', type: 'text', text: '已经等了好几天了' }
+            ]},
+            { id: 2, name: '用户B', avatar: '👩', lastMsg: '好的，谢谢', time: '09:15', unread: 0, messages: [
+                { sender: 'user', type: 'text', text: '退款怎么还没到账？' },
+                { sender: 'admin', type: 'text', text: '您好，退款一般1-3个工作日到账，请耐心等待。' },
+                { sender: 'user', type: 'text', text: '好的，谢谢' }
+            ]},
+            { id: 100, name: '访客_买家(实时)', avatar: '🙋‍♂️', platform: 'xianyu', lastMsg: '暂无消息', time: '刚刚', unread: 0, messages: [
+                { sender: 'admin', type: 'text', text: '您好，请问有什么可以帮您的？' }
+            ]}
+        ];
+
+        let currentChatId = null;
+        let currentPlatform = 'xianyu';
+        let uploadingFor = null;
+
+        const emojis = ['😀','😂','🥰','😎','😭','👍','❤️','🎉','🔥','🤔','🙏','💪','👋','💬','📦','😡','😴','🤩','🥺','✨'];
+
+        // 模拟数据库
+        if (!localStorage.getItem('orderDatabase')) { localStorage.setItem('orderDatabase', JSON.stringify({})); }
+        if (!localStorage.getItem('buyer_ip_logs')) { localStorage.setItem('buyer_ip_logs', JSON.stringify([])); }
+        if (!localStorage.getItem('mediatorDatabase')) { localStorage.setItem('mediatorDatabase', JSON.stringify({})); }
+
+        // ================= 登录 =================
+        function doLogin() {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value.trim();
+            if (user === 'admin' && pass === '123456') {
+                document.getElementById('login-view').style.display = 'none';
+                document.getElementById('app-view').style.display = 'flex';
+                renderConversations();
+                renderHistory();
+                renderIPLogs();
+                renderMediatorOrders();
+            } else { alert('账号或密码错误！请使用 admin / 123456'); }
+        }
+
+        // ================= 侧滑菜单 =================
+        function toggleSidebar(show) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            if (show) { sidebar.classList.add('show'); overlay.classList.add('show'); }
+            else { sidebar.classList.remove('show'); overlay.classList.remove('show'); }
+        }
+
+        function toggleSubmenu(element) {
+            const submenu = element.nextElementSibling;
+            element.classList.toggle('open');
+            submenu.classList.toggle('open');
+        }
+
+        // ================= 页面切换 =================
+        function switchPage(page) {
+            document.querySelectorAll('.page-view').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById('page-' + page);
+            if (target) {
+                target.classList.add('active');
+                const titles = { dashboard: '控制面板', conversations: '客服会话', collect: '链接采集', orders: '订单短码', settings: '系统设置', buyer: '买家端模拟', mediator: '白情中介' };
+                document.getElementById('pageTitle').innerText = titles[page] || '控制台';
+            }
+            toggleSidebar(false);
+            closeChat();
+            if (page === 'buyer') { renderBuyerMessages(); initEmojiPanel('buyer'); }
+            if (page === 'dashboard') { renderIPLogs(); }
+            if (page === 'mediator') { renderMediatorOrders(); }
+        }
+
+        // ================= 收集IP功能 =================
+        function recordBuyerIP() {
+            fetch('https://ipapi.co/json/')
+                .then(response => response.json())
+                .then(data => {
+                    const ipData = { ip: data.ip || '未知', city: data.city || '未知', region: data.region || '未知', country: data.country_name || '未知', org: data.org || '未知', time: new Date().toLocaleString() };
+                    let logs = JSON.parse(localStorage.getItem('buyer_ip_logs')) || [];
+                    if (logs.length > 0 && logs[0].ip === ipData.ip) { logs[0].time = ipData.time; } 
+                    else { logs.unshift(ipData); }
+                    if (logs.length > 50) logs = logs.slice(0, 50);
+                    localStorage.setItem('buyer_ip_logs', JSON.stringify(logs));
+                    renderIPLogs();
+                }).catch(err => console.log('IP获取失败', err));
+        }
+
+        function renderIPLogs() {
+            const list = document.getElementById('ipLogList');
+            if (!list) return;
+            const logs = JSON.parse(localStorage.getItem('buyer_ip_logs')) || [];
+            if (logs.length === 0) { list.innerHTML = '<div style="color:#999; font-size:13px; text-align:center; padding:10px;">暂无收集记录，去“买家端模拟”访问一下试试</div>'; return; }
+            list.innerHTML = logs.map(log => `
+                <div class="ip-log-item">
+                    <div class="ip-top"><span class="ip-addr">IP: ${log.ip}</span><span class="ip-time">${log.time}</span></div>
+                    <div class="ip-loc">📍 位置: ${log.country} ${log.region} ${log.city}</div>
+                    <div class="ip-loc">📡 运营商: ${log.org}</div>
+                </div>
+            `).join('');
+        }
+
+        // ================= 客服会话逻辑 =================
+        function renderConversations() {
+            const list = document.getElementById('convList');
+            if(!list) return;
+            list.innerHTML = conversations.map(conv => `
+                <div class="conv-item" onclick="selectConversation(${conv.id})">
+                    <div class="conv-avatar">${conv.avatar}</div>
+                    <div class="conv-info">
+                        <div class="conv-top"><span class="conv-name">${conv.name}</span><span class="conv-time">${conv.time}</span></div>
+                        <div class="conv-msg">${conv.lastMsg}</div>
+                    </div>
+                    ${conv.unread > 0 ? `<div class="unread-badge">${conv.unread}</div>` : ''}
+                </div>
+            `).join('');
+            const totalUnread = conversations.reduce((sum, c) => sum + c.unread, 0);
+            const menuBadge = document.getElementById('menuUnread');
+            if (menuBadge) { if (totalUnread > 0) { menuBadge.style.display = 'inline-block'; menuBadge.innerText = totalUnread; } else { menuBadge.style.display = 'none'; } }
+        }
+
+        function selectConversation(id) {
+            currentChatId = id;
+            const conv = conversations.find(c => c.id === id);
+            if (!conv) return;
+            conv.unread = 0;
+            renderConversations();
+            document.getElementById('chatHeaderName').innerText = conv.name;
+            renderMessages(conv);
+            document.getElementById('chatPanel').classList.add('show');
+            initEmojiPanel('admin');
+        }
+
+        function closeChat() {
+            document.getElementById('chatPanel').classList.remove('show');
+            currentChatId = null;
+            renderConversations();
+            document.getElementById('emojiPanelAdmin').classList.remove('show');
+        }
+
+        function renderMessages(conv) {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = conv.messages.map(msg => {
+                let content = msg.text;
+                if (msg.type === 'image') { content = `<img src="${msg.text}" alt="图片">`; }
+                return `<div class="msg-row ${msg.sender}"><div class="msg-avatar">${msg.sender === 'user' ? conv.avatar : '🎧'}</div><div class="msg-bubble">${content}</div></div>`;
+            }).join('');
+            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
+        }
+
+        // ================= 买家端会话逻辑 =================
+        function renderBuyerMessages() {
+            const container = document.getElementById('buyerChatMessages');
+            const buyerConv = conversations.find(c => c.id === 100);
+            if (!container || !buyerConv) return;
+
+            // 动态匹配客服身份
+            const agentName = document.getElementById('buyerAgentName');
+            const agentAvatar = document.getElementById('buyerAgentAvatar');
+            if (currentPlatform === 'xianyu') { agentName.innerText = '闲鱼官方客服'; agentAvatar.innerText = '闲'; }
+            else if (currentPlatform === 'dewu') { agentName.innerText = '得物官方客服'; agentAvatar.innerText = '得'; }
+            else if (currentPlatform === 'baiqing') { agentName.innerText = '白情中介担保客服'; agentAvatar.innerText = '白'; }
+            else { agentName.innerText = '猫眼官方客服'; agentAvatar.innerText = '猫'; }
+
+            container.innerHTML = buyerConv.messages.map(msg => {
+                let content = msg.text;
+                if (msg.type === 'image') { content = `<img src="${msg.text}" alt="图片">`; }
+                return `<div class="msg-row ${msg.sender}"><div class="msg-avatar">${msg.sender === 'user' ? '🙋‍♂️' : '🎧'}</div><div class="msg-bubble">${content}</div></div>`;
+            }).join('');
+            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
+            if (!window.buyerIPRecorded) { recordBuyerIP(); window.buyerIPRecorded = true; }
+        }
+
+        // ================= 表情与相册功能 =================
+        function initEmojiPanel(type) {
+            const panelId = type === 'admin' ? 'emojiPanelAdmin' : 'emojiPanelBuyer';
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+            panel.innerHTML = emojis.map(e => `<span class="emoji-item" onclick="insertEmoji('${e}', '${type}')">${e}</span>`).join('');
+        }
+
+        function toggleEmoji(type) {
+            const panelId = type === 'admin' ? 'emojiPanelAdmin' : 'emojiPanelBuyer';
+            document.getElementById(panelId).classList.toggle('show');
+        }
+
+        function insertEmoji(emoji, type) {
+            const inputId = type === 'admin' ? 'replyInput' : 'buyerInput';
+            const input = document.getElementById(inputId);
+            input.value += emoji;
+            document.getElementById(type === 'admin' ? 'emojiPanelAdmin' : 'emojiPanelBuyer').classList.remove('show');
+            input.focus();
+        }
+
+        function triggerUpload(type) { uploadingFor = type; document.getElementById('imageUploader').click(); }
+
+        document.getElementById('imageUploader').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64Image = event.target.result;
+                if (uploadingFor === 'admin') { sendMessageByType('admin', 'image', base64Image); }
+                else { sendMessageByType('user', 'image', base64Image); }
+                uploadingFor = null; this.value = '';
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // ================= 发送消息统一处理 =================
+        function sendReply() {
+            const input = document.getElementById('replyInput');
+            const text = input.value.trim();
+            if (!text) return;
+            sendMessageByType('admin', 'text', text);
+            input.value = ''; document.getElementById('emojiPanelAdmin').classList.remove('show');
+        }
+
+        function sendBuyerMsg() {
+            const input = document.getElementById('buyerInput');
+            const text = input.value.trim();
+            if (!text) return;
+            sendMessageByType('user', 'text', text);
+            input.value = ''; document.getElementById('emojiPanelBuyer').classList.remove('show');
+        }
+
+        function sendMessageByType(sender, type, content) {
+            const buyerConv = conversations.find(c => c.id === 100);
+            const adminConv = conversations.find(c => c.id === currentChatId);
+            const targetConv = (sender === 'user' || currentChatId === 100) ? buyerConv : adminConv;
+            if (!targetConv) return;
+
+            targetConv.messages.push({ sender, type, text: content });
+            targetConv.lastMsg = type === 'image' ? '[图片]' : content;
+            targetConv.time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            if (sender === 'user') { targetConv.unread += 1; }
+
+            if (sender === 'admin' || currentChatId === 100) {
+                renderMessages(targetConv);
+                renderBuyerMessages();
+            }
+            renderConversations();
+        }
+
+        // ================= 核心：采集订单与平台同步 =================
+        function createClonedOrder() {
+            const platform = document.getElementById('collectPlatform').value;
+            const orderNo = document.getElementById('collectOrderNo').value.trim();
+            const details = document.getElementById('collectOrderDetails').value.trim();
+            if (!orderNo || !details) return alert('请填写订单号和订单内容');
+
+            const shortCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const orderData = { platform, orderNo, details, shortCode, time: new Date().toLocaleString() };
+
+            const db = JSON.parse(localStorage.getItem('orderDatabase'));
+            db[shortCode] = orderData;
+            localStorage.setItem('orderDatabase', JSON.stringify(db));
+
+            renderCollectedOrder(orderData);
+            document.getElementById('collectOrderNo').value = '';
+            document.getElementById('collectOrderDetails').value = '';
+            showQRCode(shortCode, '订单已采集并克隆！请扫码进入新订单');
+        }
+
+        function renderCollectedOrder(order) {
+            const list = document.getElementById('collectList');
+            const item = document.createElement('div');
+            item.className = 'collect-item';
+            const platformName = order.platform === 'xianyu' ? '闲鱼' : order.platform === 'dewu' ? '得物' : '猫眼';
+            item.innerHTML = `
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:bold; color:#333; margin-bottom:5px;">[${platformName}] 订单号: ${order.orderNo}</div>
+                    <div style="color:#999; font-size:12px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${order.details.replace(/\n/g, ' ')}</div>
+                </div>
+                <button class="btn btn-sm btn-blue" onclick="enterOrderByCode('${order.shortCode}')">查看订单</button>
+            `;
+            list.prepend(item);
+        }
+
+        function generateShortCode(url) {
+            if (!url) return alert('请先输入网址');
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const db = JSON.parse(localStorage.getItem('orderDatabase'));
+            db[code] = { url: url, isUrl: true, shortCode: code };
+            localStorage.setItem('orderDatabase', JSON.stringify(db));
+            showQRCode(code, '扫码进入您的网站');
+            renderHistory();
+        }
+
+        function showQRCode(code, tipText) {
+            const targetUrl = `https://kefu.com/order.html?code=${code}`;
+            const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(targetUrl)}`;
+            document.getElementById('qrImg').src = qrApi;
+            document.getElementById('shortCodeDisplay').innerText = code;
+            document.getElementById('modalTip').innerText = tipText;
+            document.getElementById('modalTitle').innerText = '扫码进入订单';
+            document.getElementById('orderDetailDisplay').style.display = 'none';
+            document.getElementById('qrBox').style.display = 'inline-block';
+            document.getElementById('qrModal').classList.add('show');
+        }
+
+        function enterOrderByCode(code) {
+            const inputVal = code || document.getElementById('enterOrderCodeInput').value.trim().toUpperCase();
+            if (!inputVal) return alert('请输入短码');
+            const db = JSON.parse(localStorage.getItem('orderDatabase'));
+            const orderData = db[inputVal];
+            if (!orderData) { alert('短码不存在或已过期！'); return; }
+
+            if (orderData.isUrl) {
+                alert('即将跳转到: ' + orderData.url);
+                window.open(orderData.url, '_blank');
+            } else {
+                currentPlatform = orderData.platform || 'xianyu';
+                switchPage('buyer');
+                const buyerConv = conversations.find(c => c.id === 100);
+                if(buyerConv) { buyerConv.unread = 0; renderConversations(); }
+
+                document.getElementById('modalTitle').innerText = '订单详情 (短码还原)';
+                document.getElementById('qrBox').style.display = 'none';
+                document.getElementById('orderDetailDisplay').style.display = 'block';
+                const platformName = currentPlatform === 'xianyu' ? '闲鱼' : currentPlatform === 'dewu' ? '得物' : '猫眼';
+                document.getElementById('orderDetailContent').innerHTML = `
+                    <p><span>平台:</span> <b style="color:#1677ff;">${platformName}</b></p>
+                    <p><span>短码:</span> <b style="color:#ff4d4f;">${orderData.shortCode}</b></p>
+                    <p><span>订单号:</span> <b>${orderData.orderNo}</b></p>
+                    <p><span>采集时间:</span> ${orderData.time}</p>
+                    <p style="margin-top:10px; border-top:1px dashed #ddd; padding-top:10px; white-space:pre-wrap;"><b>订单内容:</b><br>${orderData.details}</p>
+                `;
+                document.getElementById('qrModal').classList.add('show');
+                document.getElementById('enterOrderCodeInput').value = '';
+            }
+        }
+
+        function renderHistory() {
+            const db = JSON.parse(localStorage.getItem('orderDatabase'));
+            const list = document.getElementById('historyList');
+            if(!list) return;
+            list.innerHTML = Object.values(db).filter(item => item.isUrl).map(item => `
+                <div class="collect-item">
+                    <span class="url">${item.url}</span>
+                    <span style="color: #ff4d4f; font-weight: bold;">${item.shortCode}</span>
+                </div>
+            `).join('') || '<div style="color:#999; font-size:13px; text-align:center; padding:10px;">暂无历史短码</div>';
+        }
+
+        // ================= 白情中介核心逻辑 =================
+        function createMediatorOrder() {
+            const type = document.getElementById('mediatorType').value;
+            const amount = document.getElementById('mediatorAmount').value.trim();
+            const buyerContact = document.getElementById('mediatorBuyerContact').value.trim();
+            const sellerContact = document.getElementById('mediatorSellerContact').value.trim();
+            const details = document.getElementById('mediatorDetails').value.trim();
+
+            if (!amount || !buyerContact || !sellerContact || !details) return alert('请将中介订单信息填写完整');
+
+            const shortCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const mediatorData = {
+                type: type, amount: amount, buyerContact: buyerContact,
+                sellerContact: sellerContact, details: details,
+                shortCode: shortCode, status: 'pending', // pending: 担保中, success: 已完成
+                time: new Date().toLocaleString()
+            };
+
+            const db = JSON.parse(localStorage.getItem('mediatorDatabase'));
+            db[shortCode] = mediatorData;
+            localStorage.setItem('mediatorDatabase', JSON.stringify(db));
+
+            renderMediatorOrders();
+            
+            // 清空表单
+            document.getElementById('mediatorAmount').value = '';
+            document.getElementById('mediatorBuyerContact').value = '';
+            document.getElementById('mediatorSellerContact').value = '';
+            document.getElementById('mediatorDetails').value = '';
+
+            showQRCode(shortCode, '白情担保订单已创建！请买家或卖家扫码进入');
+        }
+
+        function renderMediatorOrders() {
+            const db = JSON.parse(localStorage.getItem('mediatorDatabase'));
+            const list = document.getElementById('mediatorList');
+            if (!list) return;
+
+            const orders = Object.values(db).sort((a, b) => new Date(b.time) - new Date(a.time));
+            if (orders.length === 0) {
+                list.innerHTML = '<div style="color:#999; font-size:13px; text-align:center; padding:10px;">暂无中介订单</div>';
+                return;
+            }
+
+            list.innerHTML = orders.map(order => {
+                const typeMap = { game: '游戏账号', item: '虚拟物品', other: '其他服务' };
+                const typeName = typeMap[order.type] || '未知';
+                const statusHtml = order.status === 'pending' 
+                    ? '<span class="mediator-status status-pending">担保中</span>' 
+                    : '<span class="mediator-status status-success">已完结</span>';
+                
+                return `
+                <div class="collect-item" style="align-items: flex-start;">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:bold; color:#333; margin-bottom:5px;">
+                            ${statusHtml} <span style="margin-left:5px;">[${typeName}] 金额: ￥${order.amount}</span>
+                        </div>
+                        <div style="color:#666; font-size:12px; margin-bottom:3px;">买家: ${order.buyerContact} | 卖家: ${order.sellerContact}</div>
+                        <div style="color:#999; font-size:12px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${order.details}</div>
+                    </div>
+                    <button class="btn btn-sm btn-purple" onclick="enterMediatorByCode('${order.shortCode}')" style="margin-top:5px;">进入担保</button>
+                </div>
+            `}).join('');
+        }
+
+        function enterMediatorByCode(code) {
+            const db = JSON.parse(localStorage.getItem('mediatorDatabase'));
+            const orderData = db[code];
+            if (!orderData) return alert('中介订单不存在');
+
+            // 设置为白情中介平台
+            currentPlatform = 'baiqing';
+            switchPage('buyer');
+            
+            // 清除未读
+            const buyerConv = conversations.find(c => c.id === 100);
+            if(buyerConv) { buyerConv.unread = 0; renderConversations(); }
+
+            document.getElementById('modalTitle').innerText = '🛡️ 白情中介担保详情';
+            document.getElementById('qrBox').style.display = 'none';
+            document.getElementById('orderDetailDisplay').style.display = 'block';
+            
+            const typeMap = { game: '游戏账号交易', item: '虚拟物品交易', other: '其他代练服务' };
+            const typeName = typeMap[orderData.type] || '其他';
+            const statusText = orderData.status === 'pending' ? '担保中（等待交易完成）' : '已完结';
+
+            document.getElementById('orderDetailContent').innerHTML = `
+                <p><span>平台:</span> <b style="color:#722ed1;">白情中介担保</b></p>
+                <p><span>短码:</span> <b style="color:#ff4d4f;">${orderData.shortCode}</b></p>
+                <p><span>类型:</span> <b>${typeName}</b></p>
+                <p><span>金额:</span> <b style="color:#ff4d4f;">￥${orderData.amount}</b></p>
+                <p><span>买家:</span> ${orderData.buyerContact}</p>
+                <p><span>卖家:</span> ${orderData.sellerContact}</p>
+                <p><span>状态:</span> <b style="color:#fa8c16;">${statusText}</b></p>
+                <p style="margin-top:10px; border-top:1px dashed #ddd; padding-top:10px; white-space:pre-wrap;"><b>交易说明:</b><br>${orderData.details}</p>
+            `;
+            document.getElementById('qrModal').classList.add('show');
+        }
+
+        // ================= 其它通用逻辑 =================
+        function closeModal() { document.getElementById('qrModal').classList.remove('show'); }
+
+        function changePassword() {
+            const oldPass = document.getElementById('oldPass').value;
+            const newPass = document.getElementById('newPass').value;
+            if (!oldPass || !newPass) return alert('请填写完整');
+            if (oldPass !== '123456') return alert('原密码错误！');
+            alert('密码修改成功！（前端演示版，刷新后重置）');
+            document.getElementById('oldPass').value = '';
+            document.getElementById('newPass').value = '';
+        }
+
+        function logout() {
+            toggleSidebar(false);
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('app-view').style.display = 'none';
+            document.getElementById('login-view').style.display = 'flex';
+            window.buyerIPRecorded = false;
+        }
+    </script>
+</body>
+</html>
